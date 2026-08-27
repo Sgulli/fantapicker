@@ -1,0 +1,32 @@
+{
+  "name": "@fantapicker/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "seed:admin": "tsx src/seed-admin.ts",
+    "test": "tsx --test src/excel/headers.test.ts src/excel/cell.test.ts src/excel/parse-quotazioni.test.ts src/pick/weighted-sample.test.ts src/pick/exclude.test.ts"
+  },
+  "dependencies": {
+    "@fantapicker/db": "workspace:*",
+    "@fantapicker/shared": "workspace:*",
+    "@fastify/cors": "^11.1.0",
+    "@fastify/multipart": "^9.1.0",
+    "better-auth": "^1.7.1",
+    "dotenv": "^17.2.1",
+    "drizzle-orm": "^0.44.5",
+    "exceljs": "^4.4.0",
+    "fastify": "^5.5.0",
+    "fastify-plugin": "^6.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2"
+  }
+}

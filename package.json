@@ -1,0 +1,28 @@
+{
+  "name": "fantapicker",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "db:generate": "pnpm --filter @fantapicker/db generate",
+    "db:migrate": "pnpm --filter @fantapicker/db migrate",
+    "db:studio": "pnpm --filter @fantapicker/db studio",
+    "seed:admin": "pnpm --filter @fantapicker/api seed:admin",
+    "vercel-build": "turbo run build --filter=@fantapicker/web --filter=@fantapicker/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "0.44.7"
+    }
+  }
+}

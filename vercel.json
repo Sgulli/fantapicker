@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm vercel-build",
+  "outputDirectory": "apps/web/dist",
+  "functions": {
+    "api/[[...path]].ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
