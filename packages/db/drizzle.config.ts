@@ -7,11 +7,14 @@ config({
   path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env'),
 });
 
-const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+const url =
+  process.env.DIRECT_URL ??
+  process.env.DATABASE_URL_UNPOOLED ??
+  process.env.DATABASE_URL;
 
 if (!url) {
   throw new Error(
-    'Set DIRECT_URL for Neon migrations, or DATABASE_URL for local Docker.',
+    "Set DIRECT_URL or DATABASE_URL_UNPOOLED for Neon migrations, or DATABASE_URL for local Docker.",
   );
 }
 
