@@ -56,6 +56,7 @@ export function PickerPage() {
     newExtraction,
   } = useDrawSession();
   const startRef = useRef(() => {});
+  const pausedByRestartRef = useRef(false);
   const cooldown = useDrawCooldown(DRAW_COOLDOWN_MS, () => {
     void draw().then((outcome) => {
       if (outcome === "ok") startRef.current();
@@ -94,6 +95,18 @@ export function PickerPage() {
   function pauseOrResume() {
     if (cooldown.paused) cooldown.resume();
     else cooldown.pause();
+  }
+
+  function handleRestartOpenChange(open: boolean) {
+    if (open) {
+      if (!cooldown.active || cooldown.paused) return;
+      cooldown.pause();
+      pausedByRestartRef.current = true;
+      return;
+    }
+    if (!pausedByRestartRef.current) return;
+    pausedByRestartRef.current = false;
+    cooldown.resume();
   }
 
   if (!stats && !statsError) {
@@ -268,7 +281,9 @@ export function PickerPage() {
             <ConfirmDialog
               title="Sei sicuro di riavviare?"
               description="L'estrazione in corso si azzera. I giocatori già usciti tornano nel mazzo."
+              onOpenChange={handleRestartOpenChange}
               onConfirm={() => {
+                pausedByRestartRef.current = false;
                 cooldown.clear();
                 newExtraction();
               }}
