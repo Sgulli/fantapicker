@@ -16,6 +16,7 @@ import {
   AlertTitle,
 } from "@fantapicker/ui/components/alert";
 import { Button } from "@fantapicker/ui/components/button";
+import { ConfirmDialog } from "@fantapicker/ui/components/confirm-dialog";
 import {
   Empty,
   EmptyContent,
@@ -264,19 +265,25 @@ export function PickerPage() {
               <Undo2Icon data-icon="inline-start" />
               Annulla ultimo
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pending}
-              onClick={() => {
+            <ConfirmDialog
+              title="Sei sicuro di riavviare?"
+              description="L'estrazione in corso si azzera. I giocatori già usciti tornano nel mazzo."
+              onConfirm={() => {
                 cooldown.clear();
                 newExtraction();
               }}
-            >
-              <RotateCcwIcon data-icon="inline-start" />
-              Nuova estrazione
-            </Button>
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  disabled={pending}
+                >
+                  <RotateCcwIcon data-icon="inline-start" />
+                  Nuova estrazione
+                </Button>
+              }
+            />
           </div>
         ) : null}
       </div>

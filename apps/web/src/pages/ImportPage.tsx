@@ -6,17 +6,8 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@fantapicker/ui/components/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@fantapicker/ui/components/alert-dialog";
 import { Button } from "@fantapicker/ui/components/button";
+import { ConfirmDialog } from "@fantapicker/ui/components/confirm-dialog";
 import { Spinner } from "@fantapicker/ui/components/spinner";
 import { toast } from "@fantapicker/ui/components/sonner";
 import { UploadDropzone } from "@/components/UploadDropzone";
@@ -72,34 +63,25 @@ export function ImportPage() {
           Import in corso
         </Button>
       ) : null}
-      <AlertDialog
+      <ConfirmDialog
         open={pendingFile !== null && !pending}
         onOpenChange={(open) => {
           if (!open && !pending) setPendingFile(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sostituire il listone?</AlertDialogTitle>
-            <AlertDialogDescription>
-              I giocatori attuali verranno cancellati
-              {pendingFile ? ` e sostituiti con ${pendingFile.name}` : ""}.
-              L&apos;estrazione in corso si azzera.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-11">Annulla</AlertDialogCancel>
-            <AlertDialogAction
-              className="min-h-11"
-              onClick={() => {
-                if (pendingFile) void runImport(pendingFile);
-              }}
-            >
-              Importa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="Sostituire il listone?"
+        description={
+          <>
+            I giocatori attuali verranno cancellati
+            {pendingFile ? ` e sostituiti con ${pendingFile.name}` : ""}.
+            L&apos;estrazione in corso si azzera.
+          </>
+        }
+        confirmLabel="Importa"
+        cancelLabel="Annulla"
+        onConfirm={() => {
+          if (pendingFile) void runImport(pendingFile);
+        }}
+      />
     </div>
   );
 }
