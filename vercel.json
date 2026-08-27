@@ -4,13 +4,14 @@
   "buildCommand": "pnpm vercel-build",
   "outputDirectory": "apps/web/dist",
   "functions": {
-    "api/[[...path]].ts": {
+    "api/index.ts": {
       "maxDuration": 30,
       "includeFiles": "api/.bundle/**"
     }
   },
   "rewrites": [
     { "source": "/health", "destination": "/api/health" },
+    { "source": "/api/(.*)", "destination": "/api/index?__path=$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

@@ -5,9 +5,9 @@ type VercelHandler = (
   res: ServerResponse,
 ) => void | Promise<void>;
 
-const handlerPromise: Promise<VercelHandler> = import("./.bundle/handler.mjs").then(
-  (mod) => mod.default as VercelHandler,
-);
+const handlerPromise: Promise<VercelHandler> = import(
+  "./.bundle/handler.mjs"
+).then((mod) => mod.default as VercelHandler);
 
 export default async function handler(
   req: IncomingMessage,

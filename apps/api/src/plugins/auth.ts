@@ -46,7 +46,7 @@ function nodeHeaders(request: FastifyRequest) {
 }
 
 function authUrl(request: FastifyRequest) {
-  return new URL(request.url, env.BETTER_AUTH_URL);
+  return new URL(request.raw.url ?? request.url, env.BETTER_AUTH_URL);
 }
 
 function canCarryBody(method: string, body: unknown) {
