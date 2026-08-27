@@ -1,1 +1,1 @@
-export { default } from "../apps/api/src/vercel.ts";
+export { default } from "./.bundle/handler.mjs";

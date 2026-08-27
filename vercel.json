@@ -5,7 +5,8 @@
   "outputDirectory": "apps/web/dist",
   "functions": {
     "api/[[...path]].ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "api/.bundle/**"
     }
   },
   "rewrites": [
