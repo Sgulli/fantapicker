@@ -39,7 +39,7 @@ export type NewPlayerRow = typeof players.$inferInsert;
 
 export type RoomStateRow = {
   role: string;
-  drawn: unknown[];
+  drawn: number[];
   exhaustedRoles: string[];
   paused: boolean;
   cooldownEndsAt: number | null;

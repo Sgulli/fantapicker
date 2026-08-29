@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DRAW_COOLDOWN_MS,
   ROOM_POLL_MS,
-  remainingForRole,
-  remainingInDeck,
+  drawPool,
   remainingMs,
-  remainingRoleCounts,
   type RoomCommand,
   type RoomSnapshot,
   type StatsResponse,
@@ -125,24 +123,14 @@ export function useLiveRoom(code: string) {
     return () => window.clearTimeout(id);
   }, [isHost, send, snapshot]);
 
-  const liveRoles = remainingRoleCounts(
-    stats?.roles ?? [],
-    snapshot?.drawn.map((item) => item.mantraRoles) ?? [],
-    snapshot?.exhaustedRoles ?? [],
-  );
-  const remainingRole = remainingForRole(
-    stats?.roles ?? [],
-    snapshot?.drawn.map((item) => item.mantraRoles) ?? [],
-    snapshot?.role ?? "",
-    snapshot?.exhaustedRoles ?? [],
-  );
-  const remainingDeck = remainingInDeck(
-    stats?.playerCount ?? 0,
-    snapshot?.drawn.length ?? 0,
-  );
+  const drawn = snapshot?.players ?? [];
+  const pool = drawPool(stats, {
+    role: snapshot?.role ?? "",
+    drawnCount: snapshot?.drawn.length ?? 0,
+    drawnPlayers: drawn,
+    exhaustedRoles: snapshot?.exhaustedRoles ?? [],
+  });
   const role = snapshot?.role ?? "";
-  const roleExhausted = Boolean(role) && remainingRole === 0;
-  const rolesEmpty = liveRoles.every((item) => item.count === 0);
 
   return {
     stats,
@@ -152,15 +140,9 @@ export function useLiveRoom(code: string) {
     isHost,
     role,
     setRole: (next: string) => void send({ type: "setRole", role: next }),
-    drawn: snapshot?.drawn ?? [],
-    player: snapshot?.drawn.at(-1) ?? null,
-    liveRoles,
-    remainingDeck,
-    roleExhausted,
-    deckExhausted:
-      (stats?.playerCount ?? 0) > 0 &&
-      (snapshot?.drawn.length ?? 0) > 0 &&
-      (role ? rolesEmpty : remainingDeck === 0),
+    drawn,
+    player: drawn.at(-1) ?? null,
+    pool,
     canUndo: (snapshot?.drawn.length ?? 0) >= 2,
     cooldown: {
       active: cooldownActive,

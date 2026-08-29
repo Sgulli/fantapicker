@@ -6,6 +6,8 @@ export const ROLE_EXHAUSTED_ERROR =
 export const DECK_EXHAUSTED_ERROR =
   "Mazzo esaurito: tutti i giocatori sono già usciti";
 
+export const MAX_DRAWN_IDS = 5000;
+
 const nonnegativeInt = z.int().check(z.nonnegative());
 const positiveInt = z.int().check(z.positive());
 
@@ -15,11 +17,35 @@ export const pickRequestSchema = z.object({
     "",
   ),
   excludeIds: z._default(
-    z.optional(z.array(positiveInt).check(z.maxLength(5000))),
+    z.optional(z.array(positiveInt).check(z.maxLength(MAX_DRAWN_IDS))),
     [],
   ),
 });
 export type PickRequest = z.infer<typeof pickRequestSchema>;
+
+export const drawnIdSchema = z.pipe(
+  z.union([positiveInt, z.object({ playerId: positiveInt })]),
+  z.transform((item) => (typeof item === "number" ? item : item.playerId)),
+);
+export const drawnIdsSchema = z
+  .array(drawnIdSchema)
+  .check(z.maxLength(MAX_DRAWN_IDS));
+
+export function parsePlayerIds(raw: unknown): number[] {
+  if (raw == null) return [];
+  const text = Array.isArray(raw) ? raw.join(",") : String(raw);
+  return text
+    .split(",")
+    .flatMap((part) => {
+      const id = Number(part);
+      return Number.isInteger(id) && id > 0 ? [id] : [];
+    })
+    .slice(0, MAX_DRAWN_IDS);
+}
+
+export function uniquePlayerIds(ids: number[]): number[] {
+  return [...new Set(ids)].slice(0, MAX_DRAWN_IDS);
+}
 
 export const playerSchema = z.object({
   playerId: positiveInt,
@@ -39,6 +65,11 @@ export const pickResponseSchema = z.object({
   player: playerSchema,
 });
 export type PickResponse = z.infer<typeof pickResponseSchema>;
+
+export const playersResponseSchema = z.object({
+  players: z.array(playerSchema),
+});
+export type PlayersResponse = z.infer<typeof playersResponseSchema>;
 
 export const importResponseSchema = z.object({
   imported: nonnegativeInt,

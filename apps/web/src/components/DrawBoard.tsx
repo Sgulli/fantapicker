@@ -9,7 +9,7 @@ import {
   Undo2Icon,
 } from "lucide-react";
 import { formatForDisplay } from "@tanstack/react-hotkeys";
-import type { Player, RoleCount } from "@fantapicker/shared";
+import type { DrawPool, Player } from "@fantapicker/shared";
 import {
   Alert,
   AlertDescription,
@@ -36,17 +36,13 @@ export type DrawCooldownView = {
 
 type DrawBoardProps = {
   role: string;
-  liveRoles: RoleCount[];
+  pool: DrawPool;
   onRoleChange: (role: string) => void;
-  rolesLocked: boolean;
   pending: boolean;
   player: Player | null;
   drawn: Player[];
   canUndo: boolean;
   cooldown: DrawCooldownView;
-  poolEmpty: boolean;
-  roleExhausted: boolean;
-  deckExhausted: boolean;
   canControl: boolean;
   onDraw: () => void;
   onSkip: () => void;
@@ -59,17 +55,13 @@ type DrawBoardProps = {
 
 export function DrawBoard({
   role,
-  liveRoles,
+  pool,
   onRoleChange,
-  rolesLocked,
   pending,
   player,
   drawn,
   canUndo,
   cooldown,
-  poolEmpty,
-  roleExhausted,
-  deckExhausted,
   canControl,
   onDraw,
   onSkip,
@@ -80,6 +72,8 @@ export function DrawBoard({
   header,
 }: DrawBoardProps) {
   const [restartOpen, setRestartOpen] = useState(false);
+  const rolesLocked =
+    !canControl || pending || (cooldown.active && !cooldown.paused);
 
   function changeRestart(open: boolean) {
     setRestartOpen(open);
@@ -93,8 +87,8 @@ export function DrawBoard({
     drawnCount: drawn.length,
     canUndo,
     cooldownActive: cooldown.active,
-    poolEmpty,
-    rolesLocked: rolesLocked || !canControl,
+    poolEmpty: pool.poolEmpty,
+    rolesLocked,
     role,
     onDraw,
     onSkip,
@@ -119,17 +113,17 @@ export function DrawBoard({
           Ruolo
         </p>
         <RoleSelector
-          roles={liveRoles}
+          roles={pool.liveRoles}
           value={role}
           onChange={onRoleChange}
-          locked={rolesLocked || !canControl}
+          locked={rolesLocked}
         />
       </div>
       <div className="flex w-full max-w-sm flex-col items-stretch gap-2">
         <Button
           size="lg"
           className="shadow-glow min-h-11 w-full px-6"
-          disabled={!canControl || pending || cooldown.active || poolEmpty}
+          disabled={!canControl || pending || cooldown.active || pool.poolEmpty}
           onClick={onDraw}
         >
           {pending ? (
@@ -139,16 +133,16 @@ export function DrawBoard({
           )}
           {pending
             ? "Estrazione…"
-            : deckExhausted
+            : pool.deckExhausted
               ? "Mazzo esaurito"
-              : roleExhausted
+              : pool.roleExhausted
                 ? "Ruolo esaurito"
                 : cooldown.paused
                   ? "In pausa"
                   : cooldown.active
                     ? `Prossimo tra ${cooldown.remainingSec}s`
                     : "Estrai"}
-          {canControl && !pending && !cooldown.active && !poolEmpty ? (
+          {canControl && !pending && !cooldown.active && !pool.poolEmpty ? (
             <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.drawOrSkip)}</Kbd>
           ) : null}
         </Button>
@@ -169,7 +163,7 @@ export function DrawBoard({
               type="button"
               variant="outline"
               className="min-h-11"
-              disabled={pending || poolEmpty}
+              disabled={pending || pool.poolEmpty}
               onClick={onSkip}
             >
               <SkipForwardIcon data-icon="inline-start" />
@@ -228,7 +222,7 @@ export function DrawBoard({
           </div>
         ) : null}
       </div>
-      {deckExhausted ? (
+      {pool.deckExhausted ? (
         <Alert className="w-full max-w-sm">
           <CircleAlertIcon />
           <AlertTitle>Mazzo esaurito</AlertTitle>
@@ -237,7 +231,7 @@ export function DrawBoard({
             nuova estrazione.
           </AlertDescription>
         </Alert>
-      ) : roleExhausted ? (
+      ) : pool.roleExhausted ? (
         <Alert className="w-full max-w-sm">
           <CircleAlertIcon />
           <AlertTitle>Ruolo esaurito</AlertTitle>

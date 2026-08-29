@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { CircleAlertIcon } from "lucide-react";
 import { isRoomCode, normalizeRoomCode } from "@fantapicker/shared";
@@ -20,6 +20,7 @@ import { Skeleton } from "@fantapicker/ui/components/skeleton";
 import { DrawBoard } from "@/components/DrawBoard";
 import { RoomInvite } from "@/components/RoomInvite";
 import { useLiveRoom } from "@/hooks/useLiveRoom";
+import { usePauseForRestart } from "@/hooks/usePauseForRestart";
 
 export function RoomPage() {
   const { code: rawCode } = useParams();
@@ -50,26 +51,18 @@ export function RoomPage() {
 
 function RoomBody({ code, created }: { code: string; created: boolean }) {
   const room = useLiveRoom(code);
-  const pausedByRestartRef = useRef(false);
   const [inviteHidden, setInviteHidden] = useState(false);
+  const restartPause = usePauseForRestart(
+    room.cooldown,
+    room.pause,
+    room.resume,
+    room.isHost,
+  );
   const joinUrl =
     typeof window === "undefined"
       ? `/s/${code}`
       : `${window.location.origin}/s/${code}`;
-  const hideInvite = inviteHidden || room.drawn.length > 0;
-
-  function handleRestartOpenChange(open: boolean) {
-    if (!room.isHost) return;
-    if (open) {
-      if (!room.cooldown.active || room.cooldown.paused) return;
-      room.pause();
-      pausedByRestartRef.current = true;
-      return;
-    }
-    if (!pausedByRestartRef.current) return;
-    pausedByRestartRef.current = false;
-    room.resume();
-  }
+  const hideInvite = inviteHidden || (room.snapshot?.drawn.length ?? 0) > 0;
 
   if (room.error && !room.snapshot) {
     return (
@@ -90,24 +83,16 @@ function RoomBody({ code, created }: { code: string; created: boolean }) {
     return <Skeleton className="mx-auto h-80 w-full max-w-sm" />;
   }
 
-  const rolesLocked =
-    room.pending || (room.cooldown.active && !room.cooldown.paused);
-  const poolEmpty = room.role ? room.roleExhausted : room.remainingDeck <= 0;
-
   return (
     <DrawBoard
       role={room.role}
-      liveRoles={room.liveRoles}
+      pool={room.pool}
       onRoleChange={room.setRole}
-      rolesLocked={rolesLocked}
       pending={room.pending}
       player={room.player}
       drawn={room.drawn}
       canUndo={room.canUndo}
       cooldown={room.cooldown}
-      poolEmpty={poolEmpty}
-      roleExhausted={room.roleExhausted}
-      deckExhausted={room.deckExhausted}
       canControl={room.isHost}
       onDraw={() => {
         setInviteHidden(true);
@@ -120,11 +105,11 @@ function RoomBody({ code, created }: { code: string; created: boolean }) {
       }}
       onUndo={room.undo}
       onReset={() => {
-        pausedByRestartRef.current = false;
+        restartPause.forget();
         setInviteHidden(false);
         room.reset();
       }}
-      onRestartOpenChange={handleRestartOpenChange}
+      onRestartOpenChange={restartPause.onOpenChange}
       header={
         hideInvite ? null : room.isHost ? (
           <RoomInvite code={code} joinUrl={joinUrl} defaultOpen={created} />

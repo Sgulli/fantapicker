@@ -1,6 +1,6 @@
 import * as z from "zod/mini";
 import { emptyDrawSession } from "./draw-session.ts";
-import { playerSchema } from "./schemas.ts";
+import { MAX_DRAWN_IDS, drawnIdsSchema, playerSchema } from "./schemas.ts";
 
 export const DRAW_COOLDOWN_MS = 5000;
 export const ROOM_POLL_MS = 800;
@@ -8,7 +8,7 @@ export const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 
 export const roomStateSchema = z.object({
   role: z.string(),
-  drawn: z.array(playerSchema),
+  drawn: drawnIdsSchema,
   exhaustedRoles: z._default(z.optional(z.array(z.string())), []),
   paused: z._default(z.optional(z.boolean()), false),
   cooldownEndsAt: z._default(z.optional(z.nullable(z.int())), null),
@@ -21,7 +21,8 @@ export const roomSnapshotSchema = z.object({
   updatedAt: z.int(),
   version: z.int().check(z.nonnegative()),
   role: z.string(),
-  drawn: z.array(playerSchema),
+  drawn: drawnIdsSchema,
+  players: z.array(playerSchema).check(z.maxLength(MAX_DRAWN_IDS)),
   exhaustedRoles: z.array(z.string()),
   paused: z.boolean(),
   cooldownEndsAt: z.nullable(z.int()),

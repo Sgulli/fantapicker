@@ -3,19 +3,20 @@ import {
   DECK_EXHAUSTED_ERROR,
   ROLE_EXHAUSTED_ERROR,
   appendDrawn,
+  drawPool,
   emptyDrawSession,
   exhaustRole,
-  remainingForRole,
-  remainingInDeck,
-  remainingRoleCounts,
+  indexPlayers,
+  lastDrawnMantraRoles,
+  playersInDrawOrder,
   resetDrawn,
-  sessionPlayer,
   undoDrawn,
   type DrawSessionState,
+  type Player,
   type StatsResponse,
 } from "@fantapicker/shared";
 import { toast } from "@fantapicker/ui/components/sonner";
-import { getStats, isAbortError, pickPlayer } from "@/lib/api";
+import { getPlayers, getStats, isAbortError, pickPlayer } from "@/lib/api";
 import {
   clearDrawSession,
   loadDrawSession,
@@ -24,23 +25,56 @@ import {
 
 export type DrawOutcome = "ok" | "exhausted" | "fail";
 
+async function restoreCatalog(
+  stored: DrawSessionState,
+  rememberPlayers: (players: Player[]) => void,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (stored.drawn.length === 0) return true;
+  try {
+    const lookup = await getPlayers(stored.drawn, signal);
+    if (signal?.aborted) return false;
+    rememberPlayers(lookup.players);
+    return true;
+  } catch (error) {
+    if (signal?.aborted || isAbortError(error)) return false;
+    toast.error(error instanceof Error ? error.message : "Giocatori non trovati");
+    return true;
+  }
+}
+
 export function useDrawSession() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [session, setSession] = useState<DrawSessionState>(emptyDrawSession());
+  const [catalog, setCatalog] = useState<Record<number, Player>>({});
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const sessionRef = useRef(session);
+  const catalogRef = useRef(catalog);
   const statsRef = useRef(stats);
   const pendingRef = useRef(false);
   const pickAbortRef = useRef<AbortController | null>(null);
   const restoredRef = useRef(false);
   sessionRef.current = session;
+  catalogRef.current = catalog;
   statsRef.current = stats;
 
   const commit = useCallback((next: DrawSessionState) => {
     sessionRef.current = next;
     setSession(next);
+  }, []);
+
+  const rememberPlayers = useCallback((players: Player[]) => {
+    const merged = indexPlayers(players, catalogRef.current);
+    if (merged === catalogRef.current) return;
+    catalogRef.current = merged;
+    setCatalog(merged);
+  }, []);
+
+  const clearCatalog = useCallback(() => {
+    catalogRef.current = {};
+    setCatalog({});
   }, []);
 
   const draw = useCallback(async (): Promise<DrawOutcome> => {
@@ -53,20 +87,19 @@ export function useDrawSession() {
     try {
       const result = await pickPlayer(
         current.role,
-        current.drawn.map((item) => item.playerId),
+        current.drawn,
         controller.signal,
       );
-      const next = appendDrawn(current, result.player);
+      rememberPlayers([result.player]);
+      const next = appendDrawn(current, result.player.playerId);
       commit(next);
-      const left = current.role
-        ? remainingForRole(
-            statsRef.current?.roles ?? [],
-            next.drawn.map((item) => item.mantraRoles),
-            current.role,
-            next.exhaustedRoles,
-          )
-        : remainingInDeck(statsRef.current?.playerCount ?? 0, next.drawn.length);
-      return left === 0 ? "exhausted" : "ok";
+      const pool = drawPool(statsRef.current, {
+        role: current.role,
+        drawnCount: next.drawn.length,
+        drawnPlayers: playersInDrawOrder(next.drawn, catalogRef.current),
+        exhaustedRoles: next.exhaustedRoles,
+      });
+      return pool.poolEmpty ? "exhausted" : "ok";
     } catch (error) {
       if (isAbortError(error)) return "fail";
       const message =
@@ -83,7 +116,7 @@ export function useDrawSession() {
       pendingRef.current = false;
       setPending(false);
     }
-  }, [commit]);
+  }, [commit, rememberPlayers]);
 
   const setRole = useCallback((role: string) => {
     setSession((current) =>
@@ -93,13 +126,16 @@ export function useDrawSession() {
 
   const undoLast = useCallback(() => {
     if (pendingRef.current) return;
-    commit(undoDrawn(sessionRef.current));
+    commit(
+      undoDrawn(sessionRef.current, lastDrawnMantraRoles(sessionRef.current, catalogRef.current)),
+    );
   }, [commit]);
 
   const newExtraction = useCallback(() => {
+    clearCatalog();
     commit(resetDrawn(sessionRef.current));
     clearDrawSession();
-  }, [commit]);
+  }, [clearCatalog, commit]);
 
   const loadStats = useCallback(
     async (signal?: AbortSignal) => {
@@ -109,6 +145,7 @@ export function useDrawSession() {
         if (signal?.aborted) return;
         setStats(next);
         if (next.playerCount === 0) {
+          clearCatalog();
           clearDrawSession();
           restoredRef.current = true;
           setHydrated(true);
@@ -116,7 +153,10 @@ export function useDrawSession() {
         }
         if (!restoredRef.current) {
           const stored = loadDrawSession();
-          if (stored) commit(stored);
+          if (stored) {
+            if (!(await restoreCatalog(stored, rememberPlayers, signal))) return;
+            commit(stored);
+          }
           restoredRef.current = true;
         }
         setHydrated(true);
@@ -127,7 +167,7 @@ export function useDrawSession() {
         );
       }
     },
-    [commit],
+    [clearCatalog, commit, rememberPlayers],
   );
 
   useEffect(() => {
@@ -148,19 +188,13 @@ export function useDrawSession() {
     saveDrawSession(session);
   }, [hydrated, session]);
 
-  const player = sessionPlayer(session);
-  const liveRoles = remainingRoleCounts(
-    stats?.roles ?? [],
-    session.drawn.map((item) => item.mantraRoles),
-    session.exhaustedRoles,
-  );
-  const remaining =
-    liveRoles.find((item) => item.role === session.role)?.count ?? 0;
-  const remainingDeck = remainingInDeck(
-    stats?.playerCount ?? 0,
-    session.drawn.length,
-  );
-  const rolesEmpty = liveRoles.every((item) => item.count === 0);
+  const drawn = playersInDrawOrder(session.drawn, catalog);
+  const pool = drawPool(stats, {
+    role: session.role,
+    drawnCount: session.drawn.length,
+    drawnPlayers: drawn,
+    exhaustedRoles: session.exhaustedRoles,
+  });
 
   return {
     stats,
@@ -169,16 +203,9 @@ export function useDrawSession() {
     pending,
     role: session.role,
     setRole,
-    drawn: session.drawn,
-    player,
-    liveRoles,
-    remaining,
-    remainingDeck,
-    roleExhausted: Boolean(session.role) && remaining === 0,
-    deckExhausted:
-      (stats?.playerCount ?? 0) > 0 &&
-      session.drawn.length > 0 &&
-      (session.role ? rolesEmpty : remainingDeck === 0),
+    drawn,
+    player: drawn.at(-1) ?? null,
+    pool,
     noMantraRoles:
       (stats?.playerCount ?? 0) > 0 &&
       (stats?.roles.every((item) => item.count === 0) ?? false),

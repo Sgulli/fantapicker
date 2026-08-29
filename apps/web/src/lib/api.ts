@@ -2,11 +2,14 @@ import * as z from "zod/mini";
 import {
   importResponseSchema,
   pickResponseSchema,
+  playersResponseSchema,
   roomCreateResponseSchema,
   roomSnapshotSchema,
   statsResponseSchema,
+  uniquePlayerIds,
   type ImportResponse,
   type PickResponse,
+  type PlayersResponse,
   type RoomCommand,
   type RoomCreateResponse,
   type RoomSnapshot,
@@ -84,6 +87,19 @@ export function importXlsx(file: File): Promise<ImportResponse> {
   const body = new FormData();
   body.set("file", file);
   return request("/api/import", importResponseSchema, { method: "POST", body });
+}
+
+export function getPlayers(
+  ids: number[],
+  signal?: AbortSignal,
+): Promise<PlayersResponse> {
+  const unique = uniquePlayerIds(ids);
+  if (unique.length === 0) return Promise.resolve({ players: [] });
+  return request(
+    `/api/players?ids=${unique.join(",")}`,
+    playersResponseSchema,
+    { signal },
+  );
 }
 
 export function pickPlayer(

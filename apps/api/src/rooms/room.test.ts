@@ -8,6 +8,7 @@ import {
   normalizeRoomCode,
   remainingMs,
   roomCommandSchema,
+  roomStateSchema,
   type Player,
 } from "@fantapicker/shared";
 import { applyRoomCommand } from "./apply-command.ts";
@@ -56,6 +57,20 @@ describe("remainingMs", () => {
   });
 });
 
+describe("roomStateSchema", () => {
+  it("parses legacy drawn player objects as ids", () => {
+    const parsed = roomStateSchema.parse({
+      role: "A",
+      drawn: [testPlayer(7)],
+      exhaustedRoles: [],
+      paused: false,
+      cooldownEndsAt: null,
+      pausedMs: null,
+    });
+    assert.deepEqual(parsed.drawn, [7]);
+  });
+});
+
 describe("roomCommandSchema", () => {
   it("accepts host commands and rejects unknown types", () => {
     assert.equal(roomCommandSchema.parse({ type: "draw" }).type, "draw");
@@ -90,7 +105,7 @@ describe("applyRoomCommand", () => {
     );
     assert.equal(drawn.ok, true);
     if (!drawn.ok) return;
-    assert.equal(drawn.state.drawn[0]?.playerId, 1);
+    assert.equal(drawn.state.drawn[0], 1);
     assert.equal(drawn.state.cooldownEndsAt, 1000 + DRAW_COOLDOWN_MS);
 
     const paused = await applyRoomCommand(
@@ -145,5 +160,24 @@ describe("applyRoomCommand", () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.deepEqual(result.state.exhaustedRoles, ["A"]);
+  });
+
+  it("undo un-exhausts the last player's roles", async () => {
+    const twice = {
+      ...emptyRoomState("A"),
+      drawn: [1, 2],
+      exhaustedRoles: ["A"],
+    };
+    const undone = await applyRoomCommand(
+      twice,
+      { type: "undo" },
+      0,
+      async () => ({ ok: true, player: testPlayer(3) }),
+      async (id) => (id === 2 ? ["A"] : []),
+    );
+    assert.equal(undone.ok, true);
+    if (!undone.ok) return;
+    assert.deepEqual(undone.state.drawn, [1]);
+    assert.deepEqual(undone.state.exhaustedRoles, []);
   });
 });

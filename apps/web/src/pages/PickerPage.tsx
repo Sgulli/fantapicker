@@ -20,6 +20,7 @@ import { Skeleton } from "@fantapicker/ui/components/skeleton";
 import { DrawBoard } from "@/components/DrawBoard";
 import { useDrawCooldown } from "@/hooks/useDrawCooldown";
 import { useDrawSession, type DrawOutcome } from "@/hooks/useDrawSession";
+import { usePauseForRestart } from "@/hooks/usePauseForRestart";
 
 export function PickerPage() {
   const {
@@ -31,10 +32,7 @@ export function PickerPage() {
     setRole,
     drawn,
     player,
-    liveRoles,
-    roleExhausted,
-    remainingDeck,
-    deckExhausted,
+    pool,
     noMantraRoles,
     canUndo,
     draw,
@@ -42,13 +40,17 @@ export function PickerPage() {
     newExtraction,
   } = useDrawSession();
   const startRef = useRef(() => {});
-  const pausedByRestartRef = useRef(false);
   const cooldown = useDrawCooldown(DRAW_COOLDOWN_MS, () => {
     void draw().then((outcome) => {
       if (outcome === "ok") startRef.current();
     });
   });
   startRef.current = cooldown.start;
+  const restartPause = usePauseForRestart(
+    cooldown,
+    cooldown.pause,
+    cooldown.resume,
+  );
 
   function handleOutcome(outcome: DrawOutcome) {
     switch (outcome) {
@@ -78,23 +80,6 @@ export function PickerPage() {
     handleOutcome(await draw());
   }
 
-  function pauseOrResume() {
-    if (cooldown.paused) cooldown.resume();
-    else cooldown.pause();
-  }
-
-  function handleRestartOpenChange(open: boolean) {
-    if (open) {
-      if (!cooldown.active || cooldown.paused) return;
-      cooldown.pause();
-      pausedByRestartRef.current = true;
-      return;
-    }
-    if (!pausedByRestartRef.current) return;
-    pausedByRestartRef.current = false;
-    cooldown.resume();
-  }
-
   if (!stats && !statsError) {
     return <Skeleton className="mx-auto h-80 w-full max-w-sm" />;
   }
@@ -121,9 +106,6 @@ export function PickerPage() {
   }
 
   if (!stats) return null;
-
-  const rolesLocked = pending || (cooldown.active && !cooldown.paused);
-  const poolEmpty = role ? roleExhausted : remainingDeck <= 0;
 
   if (stats.playerCount === 0) {
     return (
@@ -171,31 +153,30 @@ export function PickerPage() {
   return (
     <DrawBoard
       role={role}
-      liveRoles={liveRoles}
+      pool={pool}
       onRoleChange={setRole}
-      rolesLocked={rolesLocked}
       pending={pending}
       player={player}
       drawn={drawn}
       canUndo={canUndo}
       cooldown={cooldown}
-      poolEmpty={poolEmpty}
-      roleExhausted={roleExhausted}
-      deckExhausted={deckExhausted}
       canControl
       onDraw={() => void drawFromUser()}
       onSkip={() => void skipWait()}
-      onPauseResume={pauseOrResume}
+      onPauseResume={() => {
+        if (cooldown.paused) cooldown.resume();
+        else cooldown.pause();
+      }}
       onUndo={() => {
         cooldown.clear();
         undoLast();
       }}
       onReset={() => {
-        pausedByRestartRef.current = false;
+        restartPause.forget();
         cooldown.clear();
         newExtraction();
       }}
-      onRestartOpenChange={handleRestartOpenChange}
+      onRestartOpenChange={restartPause.onOpenChange}
     />
   );
 }

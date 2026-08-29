@@ -14,6 +14,7 @@ import {
 import { db } from "../db.ts";
 import { env } from "../env.ts";
 import { drawPlayer } from "../pick/draw.ts";
+import { loadMantraRoles, loadPlayersByIds } from "../pick/players.ts";
 import { applyRoomCommand } from "../rooms/apply-command.ts";
 import {
   bearerToken,
@@ -39,22 +40,18 @@ function isUniqueViolation(error: unknown): boolean {
   return code === "23505" || nested === "23505";
 }
 
-function toSnapshot(
+async function toSnapshot(
   code: string,
   version: number,
   updatedAt: Date,
   state: RoomState,
-): RoomSnapshot {
+): Promise<RoomSnapshot> {
   return {
     code,
     version,
     updatedAt: updatedAt.getTime(),
-    role: state.role,
-    drawn: state.drawn,
-    exhaustedRoles: state.exhaustedRoles,
-    paused: state.paused,
-    cooldownEndsAt: state.cooldownEndsAt,
-    pausedMs: state.pausedMs,
+    ...state,
+    players: await loadPlayersByIds(state.drawn),
   };
 }
 
@@ -139,6 +136,7 @@ export async function registerRoomsRoute(app: FastifyInstance) {
       parsed.data,
       Date.now(),
       drawPlayer,
+      loadMantraRoles,
     );
     if (!applied.ok) {
       return reply.code(applied.status).send({ error: applied.error });
