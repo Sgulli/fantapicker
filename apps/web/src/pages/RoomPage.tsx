@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { CircleAlertIcon } from "lucide-react";
 import { isRoomCode, normalizeRoomCode } from "@fantapicker/shared";
@@ -51,10 +51,12 @@ export function RoomPage() {
 function RoomBody({ code, created }: { code: string; created: boolean }) {
   const room = useLiveRoom(code);
   const pausedByRestartRef = useRef(false);
+  const [inviteHidden, setInviteHidden] = useState(false);
   const joinUrl =
     typeof window === "undefined"
       ? `/s/${code}`
       : `${window.location.origin}/s/${code}`;
+  const hideInvite = inviteHidden || room.drawn.length > 0;
 
   function handleRestartOpenChange(open: boolean) {
     if (!room.isHost) return;
@@ -107,7 +109,10 @@ function RoomBody({ code, created }: { code: string; created: boolean }) {
       roleExhausted={room.roleExhausted}
       deckExhausted={room.deckExhausted}
       canControl={room.isHost}
-      onDraw={room.draw}
+      onDraw={() => {
+        setInviteHidden(true);
+        room.draw();
+      }}
       onSkip={room.skip}
       onPauseResume={() => {
         if (room.cooldown.paused) room.resume();
@@ -116,11 +121,12 @@ function RoomBody({ code, created }: { code: string; created: boolean }) {
       onUndo={room.undo}
       onReset={() => {
         pausedByRestartRef.current = false;
+        setInviteHidden(false);
         room.reset();
       }}
       onRestartOpenChange={handleRestartOpenChange}
       header={
-        room.isHost ? (
+        hideInvite ? null : room.isHost ? (
           <RoomInvite code={code} joinUrl={joinUrl} defaultOpen={created} />
         ) : (
           <p className="text-muted-foreground text-center text-sm">

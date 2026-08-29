@@ -19,10 +19,9 @@ import { ConfirmDialog } from "@fantapicker/ui/components/confirm-dialog";
 import { Skeleton } from "@fantapicker/ui/components/skeleton";
 import { Spinner } from "@fantapicker/ui/components/spinner";
 import { DrawStage } from "@/components/DrawStage";
+import { DrawnList } from "@/components/DrawnList";
 import { PlayerCard } from "@/components/PlayerCard";
 import { RoleSelector } from "@/components/RoleSelector";
-
-const HISTORY_VISIBLE = 8;
 
 export type DrawCooldownView = {
   active: boolean;
@@ -76,8 +75,6 @@ export function DrawBoard({
   onRestartOpenChange,
   header,
 }: DrawBoardProps) {
-  const history = [...drawn].reverse().slice(0, HISTORY_VISIBLE);
-
   return (
     <div className="flex w-full flex-col items-center gap-6 sm:gap-8">
       <div className="flex w-full max-w-lg flex-col items-center gap-3 text-center">
@@ -224,28 +221,7 @@ export function DrawBoard({
           </DrawStage>
         ) : null}
       </div>
-      {history.length > 0 ? (
-        <div className="flex w-full max-w-sm flex-col gap-2">
-          <p className="text-muted-foreground text-center text-xs tracking-[0.2em] uppercase">
-            Estratti ({drawn.length})
-          </p>
-          <ol className="flex flex-col gap-1">
-            {history.map((item) => (
-              <li
-                key={item.playerId}
-                className="text-foreground/90 truncate text-sm"
-              >
-                {item.name}
-              </li>
-            ))}
-          </ol>
-          {drawn.length > HISTORY_VISIBLE ? (
-            <p className="text-muted-foreground text-center text-xs">
-              +{drawn.length - HISTORY_VISIBLE} altri
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      <DrawnList drawn={drawn} />
     </div>
   );
 }
