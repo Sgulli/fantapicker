@@ -1,22 +1,13 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import {
-  CircleAlertIcon,
-  DicesIcon,
-  PauseIcon,
-  PlayIcon,
-  RotateCcwIcon,
-  SkipForwardIcon,
-  Undo2Icon,
-  UploadIcon,
-} from "lucide-react";
+import { CircleAlertIcon, UploadIcon } from "lucide-react";
+import { DRAW_COOLDOWN_MS } from "@fantapicker/shared";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@fantapicker/ui/components/alert";
 import { Button } from "@fantapicker/ui/components/button";
-import { ConfirmDialog } from "@fantapicker/ui/components/confirm-dialog";
 import {
   Empty,
   EmptyContent,
@@ -26,15 +17,9 @@ import {
   EmptyTitle,
 } from "@fantapicker/ui/components/empty";
 import { Skeleton } from "@fantapicker/ui/components/skeleton";
-import { Spinner } from "@fantapicker/ui/components/spinner";
-import { DrawStage } from "@/components/DrawStage";
-import { PlayerCard } from "@/components/PlayerCard";
-import { RoleSelector } from "@/components/RoleSelector";
+import { DrawBoard } from "@/components/DrawBoard";
 import { useDrawCooldown } from "@/hooks/useDrawCooldown";
 import { useDrawSession, type DrawOutcome } from "@/hooks/useDrawSession";
-
-const DRAW_COOLDOWN_MS = 5000;
-const HISTORY_VISIBLE = 8;
 
 export function PickerPage() {
   const {
@@ -48,6 +33,7 @@ export function PickerPage() {
     player,
     liveRoles,
     roleExhausted,
+    remainingDeck,
     deckExhausted,
     noMantraRoles,
     canUndo,
@@ -137,7 +123,7 @@ export function PickerPage() {
   if (!stats) return null;
 
   const rolesLocked = pending || (cooldown.active && !cooldown.paused);
-  const history = [...drawn].reverse().slice(0, HISTORY_VISIBLE);
+  const poolEmpty = role ? roleExhausted : remainingDeck <= 0;
 
   if (stats.playerCount === 0) {
     return (
@@ -183,176 +169,33 @@ export function PickerPage() {
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-6 sm:gap-8">
-      <div className="flex w-full max-w-lg flex-col items-center gap-3 text-center">
-        <h1 className="text-balance text-3xl sm:text-4xl">Estrai un giocatore</h1>
-        <p className="text-muted-foreground text-pretty text-sm leading-relaxed sm:text-base">
-          Tocca un ruolo Mantra e estrai. I FVM alti escono più spesso: i fondi
-          lista restano in gioco.
-        </p>
-      </div>
-      <div className="w-full max-w-3xl rounded-2xl border border-white/10 bg-card/40 p-3 backdrop-blur-sm sm:p-4">
-        <p className="text-muted-foreground mb-3 text-center text-xs tracking-[0.2em] uppercase">
-          Ruolo
-        </p>
-        <RoleSelector
-          roles={liveRoles}
-          value={role}
-          onChange={setRole}
-          locked={rolesLocked}
-        />
-      </div>
-      <div className="flex w-full max-w-sm flex-col items-stretch gap-2">
-        <Button
-          size="lg"
-          className="shadow-glow min-h-11 w-full px-6"
-          disabled={!role || pending || cooldown.active || roleExhausted}
-          onClick={() => void drawFromUser()}
-        >
-          {pending ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <DicesIcon data-icon="inline-start" />
-          )}
-          {pending
-            ? "Estrazione…"
-            : roleExhausted
-              ? "Ruolo esaurito"
-              : cooldown.paused
-                ? "In pausa"
-                : cooldown.active
-                  ? `Prossimo tra ${cooldown.remainingSec}s`
-                  : "Estrai"}
-        </Button>
-        <div
-          className="bg-muted h-1 overflow-hidden rounded-full"
-          aria-hidden="true"
-        >
-          <div
-            className="bg-primary h-full origin-left transition-transform duration-100 ease-linear"
-            style={{
-              transform: `scaleX(${player ? cooldown.progress : 0})`,
-            }}
-          />
-        </div>
-        {player ? (
-          <div className="grid min-h-11 grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pending || roleExhausted}
-              onClick={() => void skipWait()}
-            >
-              <SkipForwardIcon data-icon="inline-start" />
-              Salta
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pending || !cooldown.active}
-              onClick={pauseOrResume}
-            >
-              {cooldown.paused ? (
-                <PlayIcon data-icon="inline-start" />
-              ) : (
-                <PauseIcon data-icon="inline-start" />
-              )}
-              {cooldown.paused ? "Riprendi" : "Pausa"}
-            </Button>
-          </div>
-        ) : null}
-        {drawn.length > 0 ? (
-          <div className="grid min-h-11 grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pending || !canUndo}
-              onClick={() => {
-                cooldown.clear();
-                undoLast();
-              }}
-            >
-              <Undo2Icon data-icon="inline-start" />
-              Annulla ultimo
-            </Button>
-            <ConfirmDialog
-              title="Sei sicuro di riavviare?"
-              description="L'estrazione in corso si azzera. I giocatori già usciti tornano nel mazzo."
-              onOpenChange={handleRestartOpenChange}
-              onConfirm={() => {
-                pausedByRestartRef.current = false;
-                cooldown.clear();
-                newExtraction();
-              }}
-              trigger={
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  disabled={pending}
-                >
-                  <RotateCcwIcon data-icon="inline-start" />
-                  Nuova estrazione
-                </Button>
-              }
-            />
-          </div>
-        ) : null}
-      </div>
-      {deckExhausted ? (
-        <Alert className="w-full max-w-sm">
-          <CircleAlertIcon />
-          <AlertTitle>Mazzo esaurito</AlertTitle>
-          <AlertDescription>
-            Tutti i giocatori sono già usciti. Annulla l&apos;ultimo o inizia una
-            nuova estrazione.
-          </AlertDescription>
-        </Alert>
-      ) : roleExhausted ? (
-        <Alert className="w-full max-w-sm">
-          <CircleAlertIcon />
-          <AlertTitle>Ruolo esaurito</AlertTitle>
-          <AlertDescription>
-            Tutti i giocatori di questo ruolo sono già usciti. Tocca un altro
-            ruolo per continuare, oppure nuova estrazione.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="flex w-full max-w-sm justify-center" aria-live="polite">
-        {pending && !player ? (
-          <Skeleton className="h-96 w-full rounded-xl" />
-        ) : null}
-        {player ? (
-          <DrawStage drawKey={String(player.playerId)}>
-            <PlayerCard player={player} />
-          </DrawStage>
-        ) : null}
-      </div>
-      {history.length > 0 ? (
-        <div className="flex w-full max-w-sm flex-col gap-2">
-          <p className="text-muted-foreground text-center text-xs tracking-[0.2em] uppercase">
-            Estratti ({drawn.length})
-          </p>
-          <ol className="flex flex-col gap-1">
-            {history.map((item) => (
-              <li
-                key={item.playerId}
-                className="text-foreground/90 truncate text-sm"
-              >
-                {item.name}
-              </li>
-            ))}
-          </ol>
-          {drawn.length > HISTORY_VISIBLE ? (
-            <p className="text-muted-foreground text-center text-xs">
-              +{drawn.length - HISTORY_VISIBLE} altri
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    <DrawBoard
+      role={role}
+      liveRoles={liveRoles}
+      onRoleChange={setRole}
+      rolesLocked={rolesLocked}
+      pending={pending}
+      player={player}
+      drawn={drawn}
+      canUndo={canUndo}
+      cooldown={cooldown}
+      poolEmpty={poolEmpty}
+      roleExhausted={roleExhausted}
+      deckExhausted={deckExhausted}
+      canControl
+      onDraw={() => void drawFromUser()}
+      onSkip={() => void skipWait()}
+      onPauseResume={pauseOrResume}
+      onUndo={() => {
+        cooldown.clear();
+        undoLast();
+      }}
+      onReset={() => {
+        pausedByRestartRef.current = false;
+        cooldown.clear();
+        newExtraction();
+      }}
+      onRestartOpenChange={handleRestartOpenChange}
+    />
   );
 }

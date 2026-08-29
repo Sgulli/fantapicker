@@ -5,6 +5,7 @@ import {
   pgTable,
   serial,
   text,
+  timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -35,6 +36,32 @@ export const players = pgTable(
 
 export type PlayerRow = typeof players.$inferSelect;
 export type NewPlayerRow = typeof players.$inferInsert;
+
+export type RoomStateRow = {
+  role: string;
+  drawn: unknown[];
+  exhaustedRoles: string[];
+  paused: boolean;
+  cooldownEndsAt: number | null;
+  pausedMs: number | null;
+};
+
+export const rooms = pgTable(
+  "rooms",
+  {
+    code: text("code").primaryKey(),
+    hostTokenHash: text("host_token_hash").notNull(),
+    state: jsonb("state").$type<RoomStateRow>().notNull(),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (t) => [index("rooms_expires_at_idx").on(t.expiresAt)],
+);
+
+export type RoomRow = typeof rooms.$inferSelect;
+export type NewRoomRow = typeof rooms.$inferInsert;
 
 export {
   user,

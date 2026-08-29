@@ -77,3 +77,7 @@ export function remainingForRole(
     )?.count ?? 0
   );
 }
+
+export function remainingInDeck(playerCount: number, drawnCount: number): number {
+  return Math.max(0, playerCount - drawnCount);
+}

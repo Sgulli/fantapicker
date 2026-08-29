@@ -8,6 +8,7 @@ import {
   exhaustRole,
   pickRequestSchema,
   remainingForRole,
+  remainingInDeck,
   remainingRoleCounts,
   resetDrawn,
   sessionPlayer,
@@ -28,6 +29,20 @@ describe("pickRequestSchema", () => {
       excludeIds: [2488, 2012],
     });
     assert.deepEqual(parsed.excludeIds, [2488, 2012]);
+  });
+
+  it("defaults to an empty role for unfiltered picks", () => {
+    const parsed = pickRequestSchema.parse({ excludeIds: [1] });
+    assert.equal(parsed.role, "");
+    assert.deepEqual(parsed.excludeIds, [1]);
+  });
+
+  it("accepts an explicit empty role", () => {
+    assert.equal(pickRequestSchema.parse({ role: "" }).role, "");
+  });
+
+  it("rejects roles longer than 16 characters", () => {
+    assert.equal(pickRequestSchema.safeParse({ role: "x".repeat(17) }).success, false);
   });
 });
 
@@ -90,6 +105,14 @@ describe("ROLE_EXHAUSTED_ERROR", () => {
   });
 });
 
+describe("remainingInDeck", () => {
+  it("subtracts drawn players and never goes negative", () => {
+    assert.equal(remainingInDeck(10, 3), 7);
+    assert.equal(remainingInDeck(2, 2), 0);
+    assert.equal(remainingInDeck(1, 4), 0);
+  });
+});
+
 function testPlayer(playerId: number, mantraRoles: string[]): Player {
   return {
     playerId,
@@ -129,6 +152,10 @@ describe("draw session", () => {
   it("reset keeps the selected role", () => {
     const session = appendDrawn(emptyDrawSession("Pc"), testPlayer(1, ["Pc"]));
     assert.deepEqual(resetDrawn(session), emptyDrawSession("Pc"));
+  });
+
+  it("starts with no role selected", () => {
+    assert.equal(emptyDrawSession().role, "");
   });
 
   it("loads a legacy persisted payload by keeping only the source of truth", () => {

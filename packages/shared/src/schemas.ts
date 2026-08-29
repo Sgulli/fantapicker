@@ -3,11 +3,17 @@ import * as z from "zod/mini";
 export const ROLE_EXHAUSTED_ERROR =
   "Ruolo esaurito: tutti i giocatori di questo ruolo sono già usciti";
 
+export const DECK_EXHAUSTED_ERROR =
+  "Mazzo esaurito: tutti i giocatori sono già usciti";
+
 const nonnegativeInt = z.int().check(z.nonnegative());
 const positiveInt = z.int().check(z.positive());
 
 export const pickRequestSchema = z.object({
-  role: z.string().check(z.trim(), z.minLength(1), z.maxLength(16)),
+  role: z._default(
+    z.optional(z.string().check(z.trim(), z.maxLength(16))),
+    "",
+  ),
   excludeIds: z._default(
     z.optional(z.array(positiveInt).check(z.maxLength(5000))),
     [],

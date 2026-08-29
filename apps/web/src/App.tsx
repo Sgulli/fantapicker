@@ -4,8 +4,10 @@ import { Toaster } from "@fantapicker/ui/components/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { authClient } from "@/lib/auth-client";
 import { ImportPage } from "@/pages/ImportPage";
+import { LivePage } from "@/pages/LivePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PickerPage } from "@/pages/PickerPage";
+import { RoomPage } from "@/pages/RoomPage";
 
 function navClass(isActive: boolean) {
   return cn(
@@ -27,6 +29,9 @@ function AppNav() {
     <nav className="flex items-center gap-1 sm:gap-2" aria-label="Principale">
       <NavLink to="/" end className={({ isActive }) => navClass(isActive)}>
         Estrai
+      </NavLink>
+      <NavLink to="/live" className={({ isActive }) => navClass(isActive)}>
+        Stanza
       </NavLink>
       {session ? (
         <>
@@ -83,6 +88,8 @@ export default function App() {
       >
         <Routes>
           <Route path="/" element={<PickerPage />} />
+          <Route path="/live" element={<LivePage />} />
+          <Route path="/s/:code" element={<RoomPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/import"

@@ -1,0 +1,133 @@
+import { useRef } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import { CircleAlertIcon } from "lucide-react";
+import { isRoomCode, normalizeRoomCode } from "@fantapicker/shared";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@fantapicker/ui/components/alert";
+import { Button } from "@fantapicker/ui/components/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@fantapicker/ui/components/empty";
+import { Skeleton } from "@fantapicker/ui/components/skeleton";
+import { DrawBoard } from "@/components/DrawBoard";
+import { RoomInvite } from "@/components/RoomInvite";
+import { useLiveRoom } from "@/hooks/useLiveRoom";
+
+export function RoomPage() {
+  const { code: rawCode } = useParams();
+  const created = Boolean(
+    (useLocation().state as { created?: boolean } | null)?.created,
+  );
+  const code = normalizeRoomCode(rawCode ?? "");
+  if (!isRoomCode(code)) {
+    return (
+      <Empty className="border border-white/10">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CircleAlertIcon />
+          </EmptyMedia>
+          <EmptyTitle className="text-xl">Stanza non trovata</EmptyTitle>
+          <EmptyDescription>Il codice non è valido.</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button asChild className="min-h-11">
+            <Link to="/live">Torna alle stanze</Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+  return <RoomBody code={code} created={created} />;
+}
+
+function RoomBody({ code, created }: { code: string; created: boolean }) {
+  const room = useLiveRoom(code);
+  const pausedByRestartRef = useRef(false);
+  const joinUrl =
+    typeof window === "undefined"
+      ? `/s/${code}`
+      : `${window.location.origin}/s/${code}`;
+
+  function handleRestartOpenChange(open: boolean) {
+    if (!room.isHost) return;
+    if (open) {
+      if (!room.cooldown.active || room.cooldown.paused) return;
+      room.pause();
+      pausedByRestartRef.current = true;
+      return;
+    }
+    if (!pausedByRestartRef.current) return;
+    pausedByRestartRef.current = false;
+    room.resume();
+  }
+
+  if (room.error && !room.snapshot) {
+    return (
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
+        <Alert>
+          <CircleAlertIcon />
+          <AlertTitle>Stanza non disponibile</AlertTitle>
+          <AlertDescription>{room.error}</AlertDescription>
+        </Alert>
+        <Button asChild className="min-h-11 w-full">
+          <Link to="/live">Torna alle stanze</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (!room.snapshot || !room.stats) {
+    return <Skeleton className="mx-auto h-80 w-full max-w-sm" />;
+  }
+
+  const rolesLocked =
+    room.pending || (room.cooldown.active && !room.cooldown.paused);
+  const poolEmpty = room.role ? room.roleExhausted : room.remainingDeck <= 0;
+
+  return (
+    <DrawBoard
+      role={room.role}
+      liveRoles={room.liveRoles}
+      onRoleChange={room.setRole}
+      rolesLocked={rolesLocked}
+      pending={room.pending}
+      player={room.player}
+      drawn={room.drawn}
+      canUndo={room.canUndo}
+      cooldown={room.cooldown}
+      poolEmpty={poolEmpty}
+      roleExhausted={room.roleExhausted}
+      deckExhausted={room.deckExhausted}
+      canControl={room.isHost}
+      onDraw={room.draw}
+      onSkip={room.skip}
+      onPauseResume={() => {
+        if (room.cooldown.paused) room.resume();
+        else room.pause();
+      }}
+      onUndo={room.undo}
+      onReset={() => {
+        pausedByRestartRef.current = false;
+        room.reset();
+      }}
+      onRestartOpenChange={handleRestartOpenChange}
+      header={
+        room.isHost ? (
+          <RoomInvite code={code} joinUrl={joinUrl} defaultOpen={created} />
+        ) : (
+          <p className="text-muted-foreground text-center text-sm">
+            Stanza {code} · stai guardando l&apos;estrazione
+          </p>
+        )
+      }
+    />
+  );
+}

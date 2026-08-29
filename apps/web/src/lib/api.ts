@@ -2,9 +2,14 @@ import * as z from "zod/mini";
 import {
   importResponseSchema,
   pickResponseSchema,
+  roomCreateResponseSchema,
+  roomSnapshotSchema,
   statsResponseSchema,
   type ImportResponse,
   type PickResponse,
+  type RoomCommand,
+  type RoomCreateResponse,
+  type RoomSnapshot,
   type StatsResponse,
 } from "@fantapicker/shared";
 
@@ -90,6 +95,34 @@ export function pickPlayer(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role, excludeIds }),
+    signal,
+  });
+}
+
+export function createRoom(): Promise<RoomCreateResponse> {
+  return request("/api/rooms", roomCreateResponseSchema, { method: "POST" });
+}
+
+export function getRoom(
+  code: string,
+  signal?: AbortSignal,
+): Promise<RoomSnapshot> {
+  return request(`/api/rooms/${code}`, roomSnapshotSchema, { signal });
+}
+
+export function roomCommand(
+  code: string,
+  token: string,
+  command: RoomCommand,
+  signal?: AbortSignal,
+): Promise<RoomSnapshot> {
+  return request(`/api/rooms/${code}/command`, roomSnapshotSchema, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(command),
     signal,
   });
 }

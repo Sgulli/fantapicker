@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  DECK_EXHAUSTED_ERROR,
   ROLE_EXHAUSTED_ERROR,
   appendDrawn,
   emptyDrawSession,
   exhaustRole,
   remainingForRole,
+  remainingInDeck,
   remainingRoleCounts,
   resetDrawn,
   sessionPlayer,
@@ -43,7 +45,7 @@ export function useDrawSession() {
 
   const draw = useCallback(async (): Promise<DrawOutcome> => {
     const current = sessionRef.current;
-    if (!current.role || pendingRef.current) return "fail";
+    if (pendingRef.current) return "fail";
     pendingRef.current = true;
     setPending(true);
     const controller = new AbortController();
@@ -56,21 +58,24 @@ export function useDrawSession() {
       );
       const next = appendDrawn(current, result.player);
       commit(next);
-      const left = remainingForRole(
-        statsRef.current?.roles ?? [],
-        next.drawn.map((item) => item.mantraRoles),
-        current.role,
-        next.exhaustedRoles,
-      );
+      const left = current.role
+        ? remainingForRole(
+            statsRef.current?.roles ?? [],
+            next.drawn.map((item) => item.mantraRoles),
+            current.role,
+            next.exhaustedRoles,
+          )
+        : remainingInDeck(statsRef.current?.playerCount ?? 0, next.drawn.length);
       return left === 0 ? "exhausted" : "ok";
     } catch (error) {
       if (isAbortError(error)) return "fail";
       const message =
         error instanceof Error ? error.message : "Estrazione fallita";
       if (message === ROLE_EXHAUSTED_ERROR) {
-        commit(exhaustRole(sessionRef.current, current.role));
+        if (current.role) commit(exhaustRole(sessionRef.current, current.role));
         return "exhausted";
       }
+      if (message === DECK_EXHAUSTED_ERROR) return "exhausted";
       toast.error(message);
       return "fail";
     } finally {
@@ -112,10 +117,6 @@ export function useDrawSession() {
         if (!restoredRef.current) {
           const stored = loadDrawSession();
           if (stored) commit(stored);
-          else {
-            const first = next.roles.find((item) => item.count > 0);
-            if (first) commit(emptyDrawSession(first.role));
-          }
           restoredRef.current = true;
         }
         setHydrated(true);
@@ -155,6 +156,11 @@ export function useDrawSession() {
   );
   const remaining =
     liveRoles.find((item) => item.role === session.role)?.count ?? 0;
+  const remainingDeck = remainingInDeck(
+    stats?.playerCount ?? 0,
+    session.drawn.length,
+  );
+  const rolesEmpty = liveRoles.every((item) => item.count === 0);
 
   return {
     stats,
@@ -167,11 +173,12 @@ export function useDrawSession() {
     player,
     liveRoles,
     remaining,
+    remainingDeck,
     roleExhausted: Boolean(session.role) && remaining === 0,
     deckExhausted:
       (stats?.playerCount ?? 0) > 0 &&
       session.drawn.length > 0 &&
-      liveRoles.every((item) => item.count === 0),
+      (session.role ? rolesEmpty : remainingDeck === 0),
     noMantraRoles:
       (stats?.playerCount ?? 0) > 0 &&
       (stats?.roles.every((item) => item.count === 0) ?? false),

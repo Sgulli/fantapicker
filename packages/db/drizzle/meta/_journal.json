@@ -15,6 +15,13 @@
       "when": 1787771229052,
       "tag": "0001_fast_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788006107289,
+      "tag": "0002_aspiring_switch",
+      "breakpoints": true
     }
   ]
 }

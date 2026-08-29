@@ -31,7 +31,7 @@ export function RoleSelector({
       value={value}
       disabled={locked}
       onValueChange={(next) => {
-        if (locked || !next) return;
+        if (locked) return;
         onChange(next);
       }}
       className="flex w-full max-w-3xl flex-wrap justify-center gap-2"
