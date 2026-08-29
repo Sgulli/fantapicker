@@ -1,4 +1,5 @@
 import { useEffect, useState, type MouseEvent } from "react";
+import { useHotkeys } from "@tanstack/react-hotkeys";
 import { ChevronDownIcon } from "lucide-react";
 import type { Player } from "@fantapicker/shared";
 import { Button } from "@fantapicker/ui/components/button";
@@ -17,6 +18,7 @@ import {
   PaginationPrevious,
 } from "@fantapicker/ui/components/pagination";
 import { cn } from "@fantapicker/ui/lib/utils";
+import { HOTKEYS, overlayOpen } from "@/lib/hotkeys";
 
 const PAGE_SIZE = 8;
 
@@ -36,6 +38,7 @@ export function DrawnList({ drawn }: { drawn: Player[] }) {
   const [open, setOpen] = useState(true);
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(drawn.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
 
   useEffect(() => {
     if (drawn.length === 0) {
@@ -45,18 +48,47 @@ export function DrawnList({ drawn }: { drawn: Player[] }) {
     setPage((current) => Math.min(current, pageCount));
   }, [drawn.length, pageCount]);
 
-  if (drawn.length === 0) return null;
-  const newestFirst = [...drawn].reverse();
-  const currentPage = Math.min(page, pageCount);
-  const offset = (currentPage - 1) * PAGE_SIZE;
-  const items = newestFirst.slice(offset, offset + PAGE_SIZE);
-  const atFirst = currentPage === 1;
-  const atLast = currentPage === pageCount;
-
   function goTo(next: number) {
     if (next < 1 || next > pageCount || next === currentPage) return;
     setPage(next);
   }
+
+  useHotkeys(
+    [
+      {
+        hotkey: HOTKEYS.toggleDrawn,
+        callback: () => {
+          if (overlayOpen()) return;
+          setOpen((value) => !value);
+        },
+        options: { meta: { name: "Lista estratti" } },
+      },
+      {
+        hotkey: HOTKEYS.drawnPrev,
+        callback: () => {
+          if (overlayOpen() || !open) return;
+          goTo(currentPage - 1);
+        },
+        options: { enabled: pageCount > 1, meta: { name: "Pagina precedente" } },
+      },
+      {
+        hotkey: HOTKEYS.drawnNext,
+        callback: () => {
+          if (overlayOpen() || !open) return;
+          goTo(currentPage + 1);
+        },
+        options: { enabled: pageCount > 1, meta: { name: "Pagina successiva" } },
+      },
+    ],
+    { enabled: drawn.length > 0, ignoreInputs: true, requireReset: true },
+  );
+
+  if (drawn.length === 0) return null;
+  const newestFirst = [...drawn].reverse();
+  const offset = (currentPage - 1) * PAGE_SIZE;
+  const items = newestFirst.slice(offset, offset + PAGE_SIZE);
+  const atFirst = currentPage === 1;
+  const atLast = currentPage === pageCount;
 
   function onPageClick(next: number) {
     return (event: MouseEvent<HTMLAnchorElement>) => {

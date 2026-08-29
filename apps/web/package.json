@@ -12,6 +12,7 @@
   "dependencies": {
     "@fantapicker/shared": "workspace:*",
     "@fantapicker/ui": "workspace:*",
+    "@tanstack/react-hotkeys": "^0.10.0",
     "better-auth": "^1.7.1",
     "lucide-react": "^1.34.0",
     "motion": "^13.1.1",

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CircleAlertIcon,
   DicesIcon,
@@ -8,6 +8,7 @@ import {
   SkipForwardIcon,
   Undo2Icon,
 } from "lucide-react";
+import { formatForDisplay } from "@tanstack/react-hotkeys";
 import type { Player, RoleCount } from "@fantapicker/shared";
 import {
   Alert,
@@ -16,12 +17,15 @@ import {
 } from "@fantapicker/ui/components/alert";
 import { Button } from "@fantapicker/ui/components/button";
 import { ConfirmDialog } from "@fantapicker/ui/components/confirm-dialog";
+import { Kbd } from "@fantapicker/ui/components/kbd";
 import { Skeleton } from "@fantapicker/ui/components/skeleton";
 import { Spinner } from "@fantapicker/ui/components/spinner";
 import { DrawStage } from "@/components/DrawStage";
 import { DrawnList } from "@/components/DrawnList";
 import { PlayerCard } from "@/components/PlayerCard";
 import { RoleSelector } from "@/components/RoleSelector";
+import { useDrawHotkeys } from "@/hooks/useDrawHotkeys";
+import { HOTKEYS } from "@/lib/hotkeys";
 
 export type DrawCooldownView = {
   active: boolean;
@@ -75,6 +79,30 @@ export function DrawBoard({
   onRestartOpenChange,
   header,
 }: DrawBoardProps) {
+  const [restartOpen, setRestartOpen] = useState(false);
+
+  function changeRestart(open: boolean) {
+    setRestartOpen(open);
+    onRestartOpenChange?.(open);
+  }
+
+  useDrawHotkeys({
+    canControl,
+    pending,
+    hasPlayer: Boolean(player),
+    drawnCount: drawn.length,
+    canUndo,
+    cooldownActive: cooldown.active,
+    poolEmpty,
+    rolesLocked: rolesLocked || !canControl,
+    role,
+    onDraw,
+    onSkip,
+    onPauseResume,
+    onUndo,
+    onRestart: () => changeRestart(true),
+    onClearRole: () => onRoleChange(""),
+  });
   return (
     <div className="flex w-full flex-col items-center gap-6 sm:gap-8">
       <div className="flex w-full max-w-lg flex-col items-center gap-3 text-center">
@@ -120,6 +148,9 @@ export function DrawBoard({
                   : cooldown.active
                     ? `Prossimo tra ${cooldown.remainingSec}s`
                     : "Estrai"}
+          {canControl && !pending && !cooldown.active && !poolEmpty ? (
+            <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.drawOrSkip)}</Kbd>
+          ) : null}
         </Button>
         <div
           className="bg-muted h-1 overflow-hidden rounded-full"
@@ -143,6 +174,7 @@ export function DrawBoard({
             >
               <SkipForwardIcon data-icon="inline-start" />
               Salta
+              <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.drawOrSkip)}</Kbd>
             </Button>
             <Button
               type="button"
@@ -157,6 +189,7 @@ export function DrawBoard({
                 <PauseIcon data-icon="inline-start" />
               )}
               {cooldown.paused ? "Riprendi" : "Pausa"}
+              <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.pause)}</Kbd>
             </Button>
           </div>
         ) : null}
@@ -171,11 +204,13 @@ export function DrawBoard({
             >
               <Undo2Icon data-icon="inline-start" />
               Annulla ultimo
+              <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.undo)}</Kbd>
             </Button>
             <ConfirmDialog
               title="Sei sicuro di riavviare?"
               description="L'estrazione in corso si azzera. I giocatori già usciti tornano nel mazzo."
-              onOpenChange={onRestartOpenChange}
+              open={restartOpen}
+              onOpenChange={changeRestart}
               onConfirm={onReset}
               trigger={
                 <Button
@@ -186,6 +221,7 @@ export function DrawBoard({
                 >
                   <RotateCcwIcon data-icon="inline-start" />
                   Nuova estrazione
+                  <Kbd className="hidden sm:inline-flex">{formatForDisplay(HOTKEYS.restart)}</Kbd>
                 </Button>
               }
             />

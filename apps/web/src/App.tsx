@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import { cn } from "@fantapicker/ui/lib/utils";
 import { Toaster } from "@fantapicker/ui/components/sonner";
+import { HotkeyHelp } from "@/components/HotkeyHelp";
 import { RequireAuth } from "@/components/RequireAuth";
 import { authClient } from "@/lib/auth-client";
 import { ImportPage } from "@/pages/ImportPage";
@@ -79,7 +80,10 @@ export default function App() {
           <p className="font-heading text-base tracking-wide sm:text-lg">
             FantaPicker
           </p>
-          <AppNav />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <AppNav />
+            <HotkeyHelp />
+          </div>
         </div>
       </header>
       <main
