@@ -28,7 +28,7 @@ export function HotkeyHelp() {
         type="button"
         variant="ghost"
         size="icon"
-        className="min-h-11 min-w-11"
+        className="hidden min-h-11 min-w-11 sm:inline-flex"
         aria-label="Scorciatoie da tastiera"
         onClick={() => setOpen(true)}
       >
