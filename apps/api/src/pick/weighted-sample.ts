@@ -47,8 +47,7 @@ export function entropyWeight(
 }
 
 export function sampleWeight(p: QuotationScore, entropy = false): number {
-  const base = playerWeight(p);
-  return entropy ? entropyWeight(base) : base;
+  return entropyWeight(playerWeight(p), entropy ? ENTROPY_BLEND : 0);
 }
 
 export function positiveWeight(weight: number): number {

@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   ENTROPY_BLEND,
   atLeast,
-  entropyWeight,
   logFlatten,
   mixTowardUniform,
   nonnegative,
@@ -87,31 +86,33 @@ describe("isEntropyDraw", () => {
   });
 });
 
-describe("entropyWeight", () => {
-  it("flattens high vs low scores toward uniform", () => {
-    const star = playerWeight({ fvm: 370, quotationCurrent: 35 });
-    const bench = playerWeight({ fvm: 0, quotationCurrent: 1 });
-    const ratio = star / bench;
-    const entropyRatio = entropyWeight(star) / entropyWeight(bench);
-    assert.ok(entropyRatio < ratio / 2);
-    assert.ok(entropyRatio > 1);
+describe("sampleWeight", () => {
+  it("flattens FVM by default and flattens further on entropy draws", () => {
+    const star = { fvm: 370, quotationCurrent: 35 };
+    const bench = { fvm: 0, quotationCurrent: 1 };
+    const linear = playerWeight(star) / playerWeight(bench);
+    const usual = sampleWeight(star) / sampleWeight(bench);
+    const wild = sampleWeight(star, true) / sampleWeight(bench, true);
+    assert.ok(usual < linear / 2);
+    assert.ok(wild < usual);
+    assert.ok(wild > 1);
   });
 
-  it("raises the chance of picking the low-weight player", () => {
+  it("raises the chance of picking the low-weight player on entropy draws", () => {
     const items = [
       { name: "star", fvm: 370, quotationCurrent: 35 },
       { name: "bench", fvm: 0, quotationCurrent: 1 },
     ];
     const steps = [0.5, 0.6, 0.7, 0.8, 0.9];
-    const weighted = steps.map((p) =>
-      weightedSample(items, playerWeight, () => p).name,
+    const usual = steps.map((p) =>
+      weightedSample(items, (item) => sampleWeight(item), () => p).name,
     );
     const wild = steps.map((p) =>
       weightedSample(items, (item) => sampleWeight(item, true), () => p).name,
     );
     assert.ok(
       wild.filter((name) => name === "bench").length >
-        weighted.filter((name) => name === "bench").length,
+        usual.filter((name) => name === "bench").length,
     );
   });
 });
